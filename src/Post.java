@@ -6,7 +6,7 @@ import java.util.*;
 public class Post implements Comparable<Post>, Serializable {
 
     public Long post_id;
-    public Picture picture;
+    public List<Picture> pictures = new ArrayList<>();
     public Date timestamp;
     public long serialVersionUID = 2;
     private static DateFormat date_format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
@@ -22,7 +22,7 @@ public class Post implements Comparable<Post>, Serializable {
 
     public Post(Long post_id, Picture picture) {
         this(post_id);
-        this.picture = picture;
+        this.pictures.add(picture);
     }
 
     @Override
@@ -49,9 +49,6 @@ public class Post implements Comparable<Post>, Serializable {
 
     @Override
     public String toString() {
-        if (picture != null) {
-            return String.format("(%s,%s,%s)", date_format.format(timestamp), post_id, picture.md5_id);
-        }
         return String.format("(%s,%s)", date_format.format(timestamp), post_id);
     }
 }

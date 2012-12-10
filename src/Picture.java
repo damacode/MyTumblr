@@ -1,44 +1,22 @@
 
 import java.io.*;
+import java.net.*;
+import java.util.Objects;
 
 public class Picture implements Serializable {
 
-    public String lo_url, hi_url;
-    public String lo_name, hi_name, md5_id;
-    public boolean downloaded_orig;
-    public long serialVersionUID = 2;
+    private static final long serialVersionUID = 4;
+    protected URL media_url, thumb_url, hi_url;
+    protected File media_name, thumb_name, hi_name;
+    protected String md5_id;
+    protected boolean downloaded_hi;
 
-    public Picture(String lo_url, String hi_url) {
-        this.lo_url = lo_url;
-        this.hi_url = hi_url;
-        this.lo_name = Helper.extractImgFilenameFromUrl(lo_url);
-        this.hi_name = Helper.extractImgFilenameFromUrl(hi_url);
-        this.downloaded_orig = false;
-    }
-
-    public void downloadHiTemp() {
-        Helper.downloadFileFromUrlToFilenameInTemp(hi_url, hi_name);
-    }
-
-    public void downloadLoTemp() {
-        Helper.downloadFileFromUrlToFilenameInTemp(lo_url, lo_name);
-    }
-
-    public void createMD5FromLoTemp() {
-        this.md5_id = Helper.createMD5FromFilenameInTemp(lo_url, lo_name);
-    }
-
-    public void copyTempImageToStoreAsThumbnail() {
-        Helper.copyTempImageToStoreAsThumbnail(lo_name, md5_id);
-    }
-
-    public void moveHiTempImageToStore() {
-        Helper.moveTempImageToStore(hi_name, md5_id);
-        this.downloaded_orig = true;
-    }
-
-    public void moveLoTempImageToStore() {
-        Helper.moveTempImageToStore(lo_name, md5_id);
+    public Picture(URL media_url, URL thumb_url) {
+        this.media_url = media_url;
+        this.thumb_url = thumb_url;
+        this.media_name = Helper.extractMediaFileNameFromURL(media_url);
+        this.thumb_name = Helper.extractMediaThumbNameFromURL(thumb_url);
+        this.downloaded_hi = false;
     }
 
     @Override
@@ -53,13 +31,13 @@ public class Picture implements Serializable {
 
     @Override
     public int hashCode() {
-        int hash = 5;
-        hash = 89 * hash + (this.md5_id != null ? this.md5_id.hashCode() : 0);
+        int hash = 3;
+        hash = 17 * hash + Objects.hashCode(this.md5_id);
         return hash;
     }
 
     @Override
     public String toString() {
-        return String.format("%s,%s,%s,%s,%s", lo_url, hi_url, lo_name, hi_name, md5_id);
+        return String.format("%s,%s,%s,%s,%s,%s,%s", media_url, thumb_url, hi_url, media_name, thumb_name, hi_name, md5_id);
     }
 }

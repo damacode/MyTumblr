@@ -1,57 +1,157 @@
 
-import java.awt.*;
-import java.awt.image.*;
 import java.io.*;
 import java.math.*;
 import java.net.*;
 import java.nio.channels.*;
 import java.security.*;
-import java.util.logging.*;
-import javax.imageio.*;
+import java.util.*;
 
 public class Helper {
 
-    public static String extractImgFilenameFromUrl(String url) {
-        int last = url.lastIndexOf("/");
-        return url.substring(last + 1);
+    public static final File temp = new File("." + File.separator + "temp" + File.separator);
+
+    public static boolean makeSureDirectoryExists(File dir) {
+        if (!dir.exists()) {
+            dir.mkdirs();
+            return true;
+        }
+        return false;
     }
 
-    public static void makeSureDirExists(String directory) {
-        (new File(directory)).mkdirs();
-    }
-
-    public static void downloadFileFromUrlToFilenameInDir(String address, String filename, String dir) {
-        FileOutputStream file_output_stream = null;
-        try {
-            URL url = new URL(address);
-            ReadableByteChannel readable_byte_channel = Channels.newChannel(url.openStream());
-            Helper.makeSureDirExists(dir);
-            file_output_stream = new FileOutputStream(new File(dir + File.separator + filename));
-            file_output_stream.getChannel().transferFrom(readable_byte_channel, 0, 1 << 24);
-            file_output_stream.close();
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                file_output_stream.close();
-            } catch (IOException ex) {
-                Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
+    public static boolean removeDirectoryIfItExists(File dir) {
+        if (dir == null) {
+            return false;
+        }
+        if (!dir.exists()) {
+            return true;
+        }
+        if (!dir.isDirectory()) {
+            return false;
+        }
+        String[] list = dir.list();
+        if (list != null) {
+            for (int i = 0; i < list.length; i++) {
+                File entry = new File(dir, list[i]);
+                if (entry.isDirectory()) {
+                    if (!removeDirectoryIfItExists(entry)) {
+                        return false;
+                    }
+                } else {
+                    if (!entry.delete()) {
+                        return false;
+                    }
+                }
             }
         }
+        return dir.delete();
     }
 
-    public static void downloadFileFromUrlToFilenameInTemp(String address, String filename) {
-        Helper.downloadFileFromUrlToFilenameInDir(address, filename, "temp");
+    public static List<Object> loadObjectFromFile(File file) {
+        FileInputStream fis = null;
+        ObjectInputStream ois = null;
+        try {
+            if (file.exists()) {
+                fis = new FileInputStream(file);
+                ois = new ObjectInputStream(fis);
+                return (List<Object>) ois.readObject();
+            }
+        } catch (IOException | ClassNotFoundException ex) {
+        } finally {
+            try {
+                if (fis != null) {
+                    fis.close();
+                }
+                if (ois != null) {
+                    ois.close();
+                }
+            } catch (Exception ex) {
+            }
+        }
+        return null;
     }
 
-    public static String createMD5FromFile(String filename) {
+    public static boolean saveObjectToFile(File file, List<Object> objects) {
+        FileOutputStream fos = null;
+        ObjectOutputStream oos = null;
+        try {
+            makeSureDirectoryExists(new File(file.getParent()));
+            fos = new FileOutputStream(file);
+            oos = new ObjectOutputStream(fos);
+            oos.writeObject(objects);
+            oos.flush();
+            return true;
+        } catch (Exception ex) {
+        } finally {
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+                if (oos != null) {
+                    oos.close();
+                }
+            } catch (Exception ex) {
+            }
+        }
+        return false;
+    }
+
+    public static String downloadHTMLURLtoString(URL url) {
+        try {
+            StringBuilder text = new StringBuilder();
+            Scanner scanner;
+            scanner = new Scanner(url.openStream(), "utf-8");
+            try {
+                while (scanner.hasNextLine()) {
+                    text.append(scanner.nextLine()).append("\n");
+                }
+            } finally {
+                scanner.close();
+            }
+            return text.toString();
+        } catch (Exception ex) {
+        }
+        return null;
+    }
+
+    public static File extractMediaFileNameFromURL(URL url) {
+        return new File(url.toString().substring(url.toString().lastIndexOf("/") + 1));
+    }
+
+    public static File extractMediaThumbNameFromURL(URL url) {
+        return new File("thumb" + url.toString().substring(url.toString().lastIndexOf(".")));
+    }
+
+    public static boolean downloadURLToFileInDir(URL url, File file, File dir) {
+        FileOutputStream fos = null;
+        try {
+            Helper.makeSureDirectoryExists(dir);
+            ReadableByteChannel rbc = Channels.newChannel(url.openStream());
+            fos = new FileOutputStream(new File(dir, file.getName()));
+            fos.getChannel().transferFrom(rbc, 0, 1 << 24);
+            fos.close();
+        } catch (Exception ex) {
+            return false;
+        } finally {
+            try {
+                if (fos != null) {
+                    fos.close();
+                }
+            } catch (Exception ex) {
+            }
+        }
+        return true;
+    }
+
+    public static boolean downloadFileFromURLToFileInTemp(URL url, File file) {
+        Helper.makeSureDirectoryExists(temp);
+        return Helper.downloadURLToFileInDir(url, file, Helper.temp);
+    }
+
+    public static String createMD5FromFile(File file) {
         InputStream is = null;
         try {
-            File updateFile = new File(filename);
             MessageDigest digest = MessageDigest.getInstance("MD5");
-            is = new FileInputStream(updateFile);
+            is = new FileInputStream(file);
             byte[] buffer = new byte[8192];
             int read;
             while ((read = is.read(buffer)) > 0) {
@@ -62,139 +162,59 @@ public class Helper {
             String output = bigInt.toString(16);
             output = String.format("%32s", output).replace(' ', '0');
             return output;
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (NoSuchAlgorithmException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
+        } catch (NoSuchAlgorithmException | IOException ex) {
+            return null;
         } finally {
             try {
-                is.close();
-            } catch (IOException ex) {
-                Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
+                if (is != null) {
+                    is.close();
+                }
+            } catch (Exception ex) {
             }
         }
-        return null;
     }
 
-    public static String createMD5FromFilenameInTemp(String address, String filename) {
-        Helper.makeSureDirExists("temp");
-        return Helper.createMD5FromFile("temp" + File.separator + filename);
+    public static String createMD5FromFileInTemp(File file) {
+        return Helper.createMD5FromFile(new File(temp, file.getName()));
     }
 
-    public static void moveTempImageToStore(String filename, String dir) {
-        Helper.makeSureDirExists("temp");
-        File file1 = new File("temp" + File.separator + filename);
-        Helper.makeSureDirExists(Main.blogname + File.separator + dir);
-        File file2 = new File(Main.blogname + File.separator + dir + File.separator + filename);
-        file1.renameTo(file2);
+    public static void moveTempImageToStore(File file, File dir) {
+        Helper.makeSureDirectoryExists(temp);
+        File temp_file = new File(temp, file.getName());
+        Helper.makeSureDirectoryExists(dir);
+        File dir_file = new File(dir, file.getName());
+        temp_file.renameTo(dir_file);
     }
 
-    public static void copyTempImageToStoreAsThumbnail(String filenname, String dir) {
-        Helper.makeSureDirExists("temp");
-        Helper.makeSureDirExists(Main.blogname + File.separator + dir);
-        Helper.createThumbnail("temp" + File.separator + filenname, 64, 64, 100, Main.blogname + File.separator + dir + File.separator + "thumbnail.jpg");
+    public static void copyStoreImageToLocation(String src, File dir) {
+        Helper.makeSureDirectoryExists(dir);
+        copyFile(new File(src), new File(dir, new File(src).getName()));
     }
 
-    @SuppressWarnings("empty-statement")
-    public static void copyFile(File sourceFile, File destFile) {
+    public static boolean copyFile(File src, File dest) {
+        InputStream in = null;
+        OutputStream out = null;
         try {
-            if (!destFile.exists()) {
-                destFile.createNewFile();
+            in = new FileInputStream(src);
+            out = new FileOutputStream(dest);
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = in.read(buf)) > 0) {
+                out.write(buf, 0, len);
             }
-            FileChannel source;
-            FileChannel destination;
-            source = new FileInputStream(sourceFile).getChannel();
-            destination = new FileOutputStream(destFile).getChannel();
-            long count = 0;
-            long size = source.size();
-            while ((count += destination.transferFrom(source, count, size - count)) < size);
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (IOException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    private static void createThumbnail(String filename, int thumbWidth, int thumbHeight, int quality, String outFilename) {
-        try {
-            BufferedImage bi = ImageIO.read(new File(filename));
-            int w = bi.getWidth(null);
-            int h = bi.getHeight(null);
-            if (bi.getType() != BufferedImage.TYPE_INT_RGB) {
-                BufferedImage bi2 = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
-                Graphics big = bi2.getGraphics();
-                big.drawImage(bi, 0, 0, null);
-                bi = bi2;
-            }
-            bi = Helper.getScaledInstance(bi, thumbWidth, thumbHeight, RenderingHints.VALUE_INTERPOLATION_BICUBIC, true);
-            ImageIO.write(bi, "jpeg", new File(outFilename));
-        } catch (IOException ex) {
-            Logger.getLogger(Helper.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-
-    public static BufferedImage getScaledInstance(BufferedImage img, int targetWidth, int targetHeight, Object hint, boolean higherQuality) {
-        int type = (img.getTransparency() == Transparency.OPAQUE) ? BufferedImage.TYPE_INT_RGB : BufferedImage.TYPE_INT_ARGB;
-        BufferedImage ret = (BufferedImage) img;
-        int w, h;
-        if (higherQuality) {
-            w = img.getWidth();
-            h = img.getHeight();
-        } else {
-            w = targetWidth;
-            h = targetHeight;
-        }
-        do {
-            if (higherQuality && w > targetWidth) {
-                w /= 2;
-                if (w < targetWidth) {
-                    w = targetWidth;
-                }
-            }
-            if (higherQuality && h > targetHeight) {
-                h /= 2;
-                if (h < targetHeight) {
-                    h = targetHeight;
-                }
-            }
-            BufferedImage tmp = new BufferedImage(w, h, type);
-            Graphics2D g2 = tmp.createGraphics();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, hint);
-            g2.drawImage(ret, 0, 0, w, h, null);
-            g2.dispose();
-
-            ret = tmp;
-        } while (w != targetWidth || h != targetHeight);
-        return ret;
-    }
-
-    public static boolean removeDirectory(File directory) {
-        if (directory == null) {
+        } catch (Exception ex) {
             return false;
-        }
-        if (!directory.exists()) {
-            return true;
-        }
-        if (!directory.isDirectory()) {
-            return false;
-        }
-        String[] list = directory.list();
-        if (list != null) {
-            for (int i = 0; i < list.length; i++) {
-                File entry = new File(directory, list[i]);
-                if (entry.isDirectory()) {
-                    if (!removeDirectory(entry)) {
-                        return false;
-                    }
-                } else {
-                    if (!entry.delete()) {
-                        return false;
-                    }
+        } finally {
+            try {
+                if (in != null) {
+                    in.close();
                 }
+                if (out != null) {
+                    out.close();
+                }
+            } catch (Exception ex) {
             }
         }
-        return directory.delete();
+        return true;
     }
 }
