@@ -167,13 +167,9 @@ pip-log.txt
 nbproject/
 nbproject/private/
 build/
-dist/
 
 build.xml
 manifest.mf
-
-# Form Files #
-*.form
 
 # Class Files #
 *.class
