@@ -177,6 +177,3 @@ manifest.mf
 
 # Class Files #
 *.class
-
-# Package Files #
-*.jar
