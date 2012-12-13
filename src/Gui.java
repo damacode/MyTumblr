@@ -162,7 +162,7 @@ public class Gui extends javax.swing.JFrame {
 
         blogname.setColumns(10);
 
-        tumblrlabel.setText(".tumblr.com/page");
+        tumblrlabel.setText(".tumblr.com/page/");
 
         start.setColumns(3);
 
@@ -519,7 +519,6 @@ public class Gui extends javax.swing.JFrame {
     private javax.swing.JLabel image;
     private javax.swing.JScrollPane jScrollPane1;
     private javax.swing.JScrollPane jScrollPane2;
-    private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
     private javax.swing.JToolBar jToolBar1;
     private javax.swing.JButton loadbutton;
