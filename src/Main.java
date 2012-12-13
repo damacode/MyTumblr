@@ -2,7 +2,6 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
-import java.util.logging.*;
 import java.util.regex.*;
 import org.htmlparser.*;
 import org.htmlparser.filters.*;
@@ -28,7 +27,6 @@ public class Main {
     protected static HashMap<Picture, Picture> pic_pic_hash = new HashMap<>();
     private static HashMap<Picture, Post> pic_post_hash = new HashMap<>();
     private static HashMap<Post, Post> dup_post_list = new HashMap<>();
-    private static List<URL> checked = new ArrayList<>();
     private static String blogname = "";
     private static File blogdir = null;
 
@@ -82,7 +80,6 @@ public class Main {
         Main.pic_pic_hash.clear();
         Main.pic_post_hash.clear();
         Main.dup_post_list.clear();
-        Main.checked.clear();
     }
 
     public static void run(int start_page, int end_page) {
@@ -113,7 +110,7 @@ public class Main {
             if (gui != null) {
                 gui.setMaxProgress(start_page - end_page);
             }
-            for (int i = end_page; i >= start_page; i--) {
+            for (int i = start_page; i >= end_page; i--) {
                 boolean exists = Main.handleURL(String.format("http://%s.tumblr.com/page/%s", Main.blogname, i));
                 if (!exists) {
                     Main.status(String.format("We ran out of posts to process at page %s.", i));
@@ -134,9 +131,9 @@ public class Main {
     private static void writeDuplicates() {
         Main.status("Writing duplicates.");
         if (!dup_post_list.isEmpty()) {
-            Main.status(String.format("%s\t%s\n", "older_post", "newer_post"));
+            Main.status(String.format("%s\t%s", "older_post", "newer_post"));
             for (Post post : dup_post_list.keySet()) {
-                Main.status(String.format("%s\t%s\n", post.post_id, dup_post_list.get(post).post_id));
+                Main.status(String.format("%s\t%s", post.post_id, dup_post_list.get(post).post_id));
             }
         } else {
             Main.status("There are no duplicates.");
@@ -148,12 +145,14 @@ public class Main {
         Main.status("Loading databases.");
         File file = new File(blogdir, "picpic.db");
         List<Object> objects = Helper.loadObjectFromFile(file);
-        if (objects == null || objects.size() != 2) {
+        if (objects == null || objects.size() != 1) {
             Main.error("Unable to load database files so creating new database.");
             reset();
         } else {
             Main.post_post_hash = (HashMap<Post, Post>) objects.get(0);
-            Main.checked = (List<URL>) objects.get(1);
+            Main.pic_pic_hash.clear();
+            Main.pic_post_hash.clear();
+            Main.dup_post_list.clear();
             Main.setupPosts();
         }
         Main.status("Done loading databases.");
@@ -164,7 +163,6 @@ public class Main {
         File file = new File(blogdir, "picpic.db");
         List<Object> objects = new ArrayList<>();
         objects.add(Main.post_post_hash);
-        objects.add(Main.checked);
         Helper.saveObjectToFile(file, objects);
         Main.status("Done saving databases.");
     }
@@ -220,7 +218,8 @@ public class Main {
                 }
             }
         } catch (Exception ex) {
-            Main.status("Eror handling post.");
+            ex.printStackTrace();
+            Main.status("Error handling post.");
         }
         return true;
     }
@@ -300,21 +299,18 @@ public class Main {
     private static void handlePost(Post post) {
         Main.post_post_hash.put(post, post);
         for (Picture picture : post.pictures) {
-            if (!Main.checked.contains(picture.thumb_url)) {
-                Helper.downloadFileFromURLToFileInTemp(picture.thumb_url, picture.thumb_name);
-                picture.md5_id = Helper.createMD5FromFileInTemp(picture.thumb_name);
-                Helper.moveTempImageToStore(picture.thumb_name, new File(Main.blogdir, picture.md5_id));
-                if (!Main.pic_pic_hash.containsKey(picture)) {
-                    Main.pic_pic_hash.put(picture, picture);
-                    Main.pic_post_hash.put(picture, post);
-                    Helper.downloadFileFromURLToFileInTemp(picture.media_url, picture.media_name);
-                    Helper.moveTempImageToStore(picture.media_name, new File(Main.blogdir, picture.md5_id));
-                } else {
-                    if(!post.equals(Main.pic_post_hash.get(picture))){
-                        dup_post_list.put(post, Main.pic_post_hash.get(picture));
-                    }
+            Helper.downloadFileFromURLToFileInTemp(picture.thumb_url, picture.thumb_name);
+            picture.md5_id = Helper.createMD5FromFileInTemp(picture.thumb_name);
+            Helper.moveTempImageToStore(picture.thumb_name, new File(Main.blogdir, picture.md5_id));
+            if (!Main.pic_pic_hash.containsKey(picture)) {
+                Main.pic_pic_hash.put(picture, picture);
+                Main.pic_post_hash.put(picture, post);
+                Helper.downloadFileFromURLToFileInTemp(picture.media_url, picture.media_name);
+                Helper.moveTempImageToStore(picture.media_name, new File(Main.blogdir, picture.md5_id));
+            } else {
+                if (!post.equals(Main.pic_post_hash.get(picture))) {
+                    dup_post_list.put(post, Main.pic_post_hash.get(picture));
                 }
-                Main.checked.add(picture.thumb_url);
             }
         }
     }
@@ -332,9 +328,9 @@ public class Main {
                 Main.pic_pic_hash.put(picture, picture);
                 Main.pic_post_hash.put(picture, post);
             } else {
-                    if(!post.equals(Main.pic_post_hash.get(picture))){
-                        dup_post_list.put(post, Main.pic_post_hash.get(picture));
-                    }
+                if (!post.equals(Main.pic_post_hash.get(picture))) {
+                    dup_post_list.put(post, Main.pic_post_hash.get(picture));
+                }
             }
         }
     }
